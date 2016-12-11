@@ -112,7 +112,9 @@ function Bullet:collided(other, fixt, otherFixt, contact)
     else
       self.damage = self.damage - self.baseDamage * 0.7 / self.maxPenetrations
     end
-  else
+
+    playRandom{"hit", "hit2", "hit3", "hit4"}
+  elseif other:isInstanceOf(Walls) or other:isInstanceOf(Altar) or other:isInstanceOf(Brazier) then
     self:die()
   end
 end

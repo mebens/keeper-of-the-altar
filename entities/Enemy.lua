@@ -4,6 +4,7 @@ Enemy.static.all = LinkedList:new("_nextEnemy", "_prevEnemy")
 function Enemy:initialize(x, y)
   PhysicalEntity.initialize(self, x, y, "dynamic")
   self.layer = 5
+  self.scale = 1
   self.speed = 600 * 60
   self.health = 100
   self.slowdownSpeed = 400 * 60
@@ -15,6 +16,7 @@ end
 function Enemy:added()
   self:setupBody()
   self.fixture = self:addShape(love.physics.newRectangleShape(self.width, self.height))
+  self.fixture:setCategory(7)
   self:setMass(1)
   self:setLinearDamping(10)
   self.destX = self.world.width / 2
@@ -29,9 +31,18 @@ function Enemy:removed()
 end
 
 function Enemy:update(dt)
+  if self.map then self.map:update(dt) end
+
   if self.dead then
     self:destroy()
-    self.world = nil
+    if not self.fallen and not self.playingAnim then
+      self.world = nil
+    elseif self.playingAnim and self.map.current == nil then
+      self.playingAnim = false
+      self.world.floorBlood:drawMap(self)
+      self.world = nil
+    end
+
     return
   end
 
@@ -58,6 +69,7 @@ function Enemy:update(dt)
       angle = math.angle(self.x, self.y, self.destX, self.destY)
     elseif self.attackTimer <= 0 then
       self.world.altar:damage(self.damage, self)
+      playRandom{"hit", "hit2", "hit3", "hit4"}
       self.attackTimer = self.attackTime
       if self.map then self.map:play("attack") end
     end
@@ -70,6 +82,7 @@ function Enemy:update(dt)
       angle = math.angle(self.x, self.y, self.world.player.x, self.world.player.y)
     elseif self.attackTimer <= 0 then
       self.world.player:damage(self.damage, self)
+      playRandom{"hit", "hit2", "hit3", "hit4"}
       self.attackTimer = self.attackTime
       if self.map then self.map:play("attack") end
     end
@@ -85,8 +98,6 @@ function Enemy:update(dt)
       self.map:play("move")
     end
   end
-
-  if self.map then self.map:update(dt) end
 end
 
 function Enemy:draw()
@@ -99,6 +110,11 @@ function Enemy:bulletHit(bullet, contact)
   self.world:add(BloodSpurt:new(self.x, self.y, bullet.angle, 2))
 
   if self.health <= 0 then
+    if self.map then
+      self.playingAnim = true
+      self.map:play("death")
+    end
+
     self:die()
     return
   end
@@ -134,8 +150,18 @@ function Enemy:die()
   if self.dead then return end
   self.world:add(Coin:new(self.x, self.y))
   self.dead = true
-  self.world = nil
+  if not self.playingAnim then self.world = nil end
 end
+
+function Enemy:fall()
+  self.dead = true
+  self.fallen = true
+  self:animate(1, { scale = 0 }, ease.cubeOut, function()
+    self.fallen = false
+    self.world = nil
+  end)
+end
+
 
 function Enemy:collided(other)
   if other:isInstanceOf(Altar) then

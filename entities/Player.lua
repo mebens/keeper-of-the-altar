@@ -4,36 +4,36 @@ Player.static.height = 10
 Player.static.coinParticle = getRectImage(1, 1)
 
 Player.static.smgUpgrades = {
-  { "Purchase Weapon", 10 },
-  { "Dual Wield", 50 },
-  { "Penetrative Bullets", 200 },
-  { "More Damage", 400 }
+  { "Purchase Weapon", 0 },
+  { "Dual Wield", 10 },
+  { "Penetrative Bullets", 20 },
+  { "More Damage", 30 }
 }
 
 Player.static.mgUpgrades = {
-  { "Purchase Weapon", 50 },
-  { "Dual Wield", 200 },
-  { "Heavy Duty Bullets", 400 }
+  { "Purchase Weapon", 10 },
+  { "Dual Wield", 25 },
+  { "Heavy Duty Bullets", 30 }
 }
 
 Player.static.sgUpgrades = {
-  { "Purchase Weapon", 50 },
-  { "Dual Wield", 200 },
-  { "More Pellets", 400 },
-  { "Heat-Seeking Pellets", 800 }
+  { "Purchase Weapon", 10 },
+  { "Dual Wield", 25 },
+  { "More Pellets", 25 },
+  { "Heat-Seeking Pellets", 40 }
 }
 
 Player.static.laserUpgrades = {
-  { "Purchase Weapon", 200 },
-  { "Penetrative Beam", 400 },
-  { "Dual Wield", 600 },
-  { "Overheats Less", 600 }
+  { "Purchase Weapon", 30 },
+  { "Penetrative Beam", 30 },
+  { "Dual Wield", 60 },
+  { "Overheats Less", 80 }
 }
 
 Player.static.rpgUpgrades = {
-  { "Purchase Weapon", 300 },
-  { "Heat-Seeking Splitter Rocket", 600 },
-  { "Dual Wield", 800 }
+  { "Purchase Weapon", 30 },
+  { "Heat-Seeking Splitter Rocket", 40 },
+  { "Dual Wield", 60 }
 }
 
 function Player:initialize(x, y)
@@ -95,6 +95,7 @@ function Player:initialize(x, y)
   ps:setEmissionRate(100)
   ps:start()
   self.spawnPS = ps
+  playSound("spawn")
 end
 
 function Player:added()
@@ -109,11 +110,15 @@ function Player:added()
   self.muzzleLight = self.world.lighting:add(self.x, self.y, 130, 10)
   self.muzzleLight.alpha = 0
   self.world:add(self.laser, self.laser2)
+
+  self.laserSound = assets.sfx.laser:loop()
+  self.laserSound:pause()
 end
 
 function Player:update(dt)
   self.coinPS:update(dt)
   self.spawnPS:update(dt)
+  self.laserSound:pause()
 
   if self.respawnTimer > 0 then
     self.respawnTimer = self.respawnTimer - dt
@@ -175,12 +180,12 @@ function Player:update(dt)
     end
   end
 
-  if input.pressed("prevweapon") and self.weaponIndex > 1 then
-    self:switchWeapon(self.weaponIndex - 1)
+  if input.pressed("prevweapon") then
+    self:switchWeapon("down")
   end
 
-  if input.pressed("nextweapon") and self.weaponIndex < 5 then
-    self:switchWeapon(self.weaponIndex + 1)
+  if input.pressed("nextweapon") then
+    self:switchWeapon("up")
   end
 end
 
@@ -200,6 +205,9 @@ function Player:attack(dt)
     else
       self.world:add(Bullet:new(sx, sy, self.angle, self.mgCaliber))
     end
+
+    playRandom{"mg", "mg2", "mg3"}
+    self.world:shake(0.1, 0.5)
   elseif self.weapon == "smg" then
     if self.smgDual then
       local angle1 = self.angle - self.smgVariance / 2 + self.smgVariance * math.random()
@@ -210,6 +218,8 @@ function Player:attack(dt)
       local angle = self.angle - self.smgVariance / 2 + self.smgVariance * math.random()
       self.world:add(Bullet:new(sx, sy, angle, self.smgCaliber, self.smgPenetration and 3 or 0))
     end
+
+    playRandom{"smg", "smg2", "smg3"}
   elseif self.weapon == "sg" then
     if self.sgDual then
       for i = 1, self.sgPellets do
@@ -224,6 +234,9 @@ function Player:attack(dt)
         self.world:add(Bullet:new(sx, sy, angle, "pellet", nil, self.sgSeeking))
       end
     end
+
+    playRandom{"sg", "sg2", "sg3"}
+    self.world:shake(0.2, 1)
   elseif self.weapon == "laser" then
     if self.laserOverheatTimer <= 0 then
       self.laserHeat = self.laserHeat + dt
@@ -242,6 +255,8 @@ function Player:attack(dt)
       self.muzzleLight.alpha = math.random(170, 255)
       self.muzzleLight.color[2] = 120
       self.muzzleLight.color[3] = 120
+      self.world:shake(0.1, 0.5)
+      self.laserSound:play()
     else
       self.muzzleLight.alpha = 0
       self.muzzleFlashTimer = 0
@@ -253,6 +268,8 @@ function Player:attack(dt)
     else
       self.world:add(Rocket:new(sx, sy, self.angle, self.rpgSeeking))
     end
+
+    self.world:shake(0.15, 1)
   end
 end
 
@@ -260,7 +277,7 @@ function Player:draw()
   love.graphics.draw(self.spawnPS)
   love.graphics.draw(self.coinPS)
 
-  if not self.dead or self.respawnTimer <= 0.5 then
+  if not self.dead or self.respawnTimer <= 0.5 or self.fallen then
     local img
     if self[self.weapon .. "Dual"] then
       img = self.mg2Img
@@ -272,7 +289,7 @@ function Player:draw()
   end
 end
 
-function Player:die()
+function Player:die(noBlood)
   if self.dead then return end
   self.dead = true
   self.respawnTimer = self.respawnTime
@@ -281,10 +298,26 @@ function Player:die()
   self.light.alpha = 0
   tween(self.light, self.respawnTime * (2/3), { alpha = 125 })
 
-  self.world:add(BloodSpurt:new(self.x, self.y, math.tau * math.random(), 6, 6, 1))
+  if not noBlood then
+    self.world:add(BloodSpurt:new(self.x, self.y, math.tau * math.random(), 6, 6, 1))
+  end
 
   self.x = self.respawnX
   self.y = self.respawnY
+  playSound("spawn")
+end
+
+function Player:fall()
+  self.dead = true
+  self.fallen = true
+  self.laser:reset()
+  self.laser2:reset()
+
+  self:animate(1, { scale = 0 }, ease.cubeOut, function()
+    self.dead = false
+    self.fallen = false
+    self:die(true)
+  end)
 end
 
 function Player:spawn()
@@ -333,7 +366,7 @@ function Player:applySettings(smg, mg, sg, laser, rpg)
 
   laser = laser or self.laserLevel
   self.laserLevel = laser
-  self.laserHeatLimit = 2
+  self.laserHeatLimit = 3
   self.laser.maxPenetrations = 0
   if laser >= 1 then self.laserUnlocked = true end
   if laser >= 2 then
@@ -341,7 +374,7 @@ function Player:applySettings(smg, mg, sg, laser, rpg)
     self.laser2.maxPenetrations = 5
   end
   if laser >= 3 then self.laserDual = true end
-  if laser >= 4 then self.laserHeatLimit = 5 end
+  if laser >= 4 then self.laserHeatLimit = 6 end
 
   rpg = rpg or self.rpgLevel
   self.rpgLevel = rpg
@@ -358,20 +391,36 @@ end
 function Player:switchWeapon(index)
   local curwep = self.weapon
 
-  if index == 1 then
-    if self.smgUnlocked then self.weapon = "smg" end
-  elseif index == 2 then
-    if self.mgUnlocked then self.weapon = "mg" end
-  elseif index == 3 then
-    if self.sgUnlocked then self.weapon = "sg" end
-  elseif index == 4 then
-    if self.laserUnlocked then self.weapon = "laser" end
-  elseif index == 5 then
-    if self.rpgUnlocked then self.weapon = "rpg" end
-  end
+  if index == "up" then
+    local st = math.min(self.weaponIndex + 1, 5)
 
-  if self.weapon ~= curwep then
-    self.weaponIndex = index
+    for i = st, 5 do
+      self:switchWeapon(i)
+      if curwep ~= self.weapon then break end
+    end
+  elseif index == "down" then
+    local st = math.max(self.weaponIndex - 1, 1)
+
+    for i = st, 1, -1 do
+      self:switchWeapon(i)
+      if curwep ~= self.weapon then break end
+    end
+  else
+    if index == 1 then
+      if self.smgUnlocked then self.weapon = "smg" end
+    elseif index == 2 then
+      if self.mgUnlocked then self.weapon = "mg" end
+    elseif index == 3 then
+      if self.sgUnlocked then self.weapon = "sg" end
+    elseif index == 4 then
+      if self.laserUnlocked then self.weapon = "laser" end
+    elseif index == 5 then
+      if self.rpgUnlocked then self.weapon = "rpg" end
+    end
+
+    if self.weapon ~= curwep then
+      self.weaponIndex = index
+    end
   end
 end
 
@@ -395,4 +444,5 @@ function Player:coinCollected(x, y)
   self.coinPS:setDirection(math.angle(0, 0, self.velx, self.vely))
   self.coinPS:moveTo(x, y)
   self.coinPS:emit(10)
+  playRandom{"coin", "coin2", "coin3"}
 end

@@ -37,7 +37,7 @@ function Altar:added()
   self:setupBody()
   self.fixture = self:addShape(love.physics.newRectangleShape(self.width, self.height))
   self.light = self.world.lighting:add(self.x, self.y, 150)
-  --self:switchMode("calm")
+  self:switchMode("calm")
 end
 
 function Altar:update(dt)
@@ -59,7 +59,7 @@ function Altar:update(dt)
     self.light.alpha = 255 - 125 * self.pulseFactor / 2
 
     if self.fixture:testPoint(mouseCoords()) then
-      self.world.hud:displayTooltip(self, "Upgrades")
+      self.world.hud:displayTooltip(self, "The Altar")
     elseif self.world.hud.ttID == self then
       self.world.hud:closeTooltip()
     end
@@ -74,7 +74,10 @@ function Altar:draw()
 end
 
 function Altar:die()
-  -- bad shit
+  if self.dead then return end
+  self.dead = true
+  playSound("altar-death")
+  self.world:gameOver()
 end
 
 function Altar:damage(amount)

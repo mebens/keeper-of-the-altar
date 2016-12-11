@@ -28,6 +28,7 @@ function Walls:loadFromXML(xml)
     local w, h = tonumber(v.attr.w), tonumber(v.attr.h)
     local fixt = self:addShape(love.physics.newRectangleShape(tonumber(v.attr.x) + w / 2, tonumber(v.attr.y) + h / 2, w, h))
     fixt:setCategory(16)
+    fixt:setMask(7) -- let enemies pass
   end
 end
 

@@ -42,6 +42,7 @@ function SeekerRocket:added()
   self:animate(0.5, { speed = self.normalSpeed })
   self.light = self.world.lighting:addImage(SeekerRocket.lightImg, self.x, self.y, 100)
   self.light.alpha = 0
+  self.sound = playRandom({"seekrpg", "seekrpg2"}, 0.3)
 end
 
 function SeekerRocket:update(dt)
@@ -111,6 +112,7 @@ function SeekerRocket:die()
   self.dead = true
   self:destroy()
   self.smokePS:stop()
+  self.sound:stop()
 end
 
 function SeekerRocket:explode()
@@ -130,11 +132,13 @@ function SeekerRocket:explode()
   self.smokePS:setSpread(math.tau)
   self.smokePS:emit(80)
   self.smokePS:setParticleLifetime(2, 3)
+  self.world:shake(0.2, 2)
+  playRandom({"explosion", "explosion2", "explosion3", "explosion4"}, 0.5)
   self:die()
 end
 
 function SeekerRocket:collided(other, fixt, otherFixt, contact)
-  if other:isInstanceOf(Enemy) or other:isInstanceOf(Walls) or other:isInstanceOf(Altar) then
+  if other:isInstanceOf(Enemy) or other:isInstanceOf(Walls) or other:isInstanceOf(Altar) or other:isInstanceOf(Brazier) then
     self:explode()
   end
 end

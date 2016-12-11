@@ -32,3 +32,10 @@ function FloorBlood:bleed(x, y, size, scatter)
   love.graphics.setColor(255, 255, 255)
 end
 
+function FloorBlood:drawMap(obj)
+  self.canvas:renderTo(function()
+    obj:drawMap()
+  end)
+end
+
+

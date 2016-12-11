@@ -1,9 +1,8 @@
 Spawner = class("Spawner", Entity)
 
-function Spawner:initialize(pos, etype, rate, count)
+function Spawner:initialize(pos, rate, count)
   Entity.initialize(self)
   self.position = pos
-  self.type = etype
   self.rate = rate
   self.count = count or 0
   self.timer = 0
@@ -37,11 +36,8 @@ function Spawner:update(dt)
   else
     local x = self.x - self.xVariance / 2 + self.xVariance * math.random()
     local y = self.y - self.yVariance / 2 + self.yVariance * math.random()
-
-    if self.type == "knight" then
-      self.world:add(Knight:new(x, y))
-    end
-
+    
+    self.world:add(Knight:new(x, y))
     self.timer = self.rate
     self.spawned = self.spawned + 1
 

@@ -7,7 +7,7 @@ function Laser:initialize()
   self.angle = 0
   self.firing = false
   self.fireDistance = 1000
-  self.dps = 400
+  self.dps = 800
   self.maxPenetrations = 0
 
   local ps = love.graphics.newParticleSystem(Laser.particle, 1000)

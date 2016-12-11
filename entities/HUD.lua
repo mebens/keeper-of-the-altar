@@ -3,16 +3,19 @@ HUD = class("HUD", Entity)
 function HUD:initialize()
   Entity.initialize(self)
   self.layer = 0
+  self.fadeAlpha = 255
   self.coinImg = assets.images.coinHUD
   self.coinText = Text:new{0, x = 25, y = 5, font = assets.fonts.main[18], shadow = true}
   self.weaponText = Text:new{x = 6, y = 5, width = love.graphics.width - 12, font = assets.fonts.main[18], align = "right", shadow = true}
+
+  self.weaponList = Text:new{x = 6, y = 30, width = love.graphics.width - 12, font = assets.fonts.main[12], align = "right", shadow = true}
 
   self.ttText = Text:new{"", font = assets.fonts.main[12]}
   self.ttScissor = 0
   self.ttOpen = false
 
   self.purchaseDeniedTimer = 0
-  self.upgradesVisible = true
+  self.upgradesVisible = false
   self.upgradesAlpha = 0
   self.upgradeItemPadding = 10
   self.upgradeScreenPadding = 40
@@ -30,26 +33,47 @@ function HUD:initialize()
     shadow = true
   }
 
-  self.buttonWidth = 100
-  self.buttonHeight = 40
-  self.readyBtn = self:makeButton("READY", "left")
-  self.closeBtn = self:makeButton("CLOSE", "right")
-
-  self.altarWidth = 300
-  self.altarHeight = 22
-  self.altarText = Text:new{x = love.graphics.width / 2 - self.altarWidth / 2, width = self.altarWidth, font = assets.fonts.main[18], align = "center", shadow = true}
-  self.altarText.y = self.altarText.fontHeight / 2 - 1
   self:addUpgrade("smg", "SMG", 1)
   self:addUpgrade("mg", "Machine Gun", 0)
   self:addUpgrade("sg", "Shotgun", 0)
   self:addUpgrade("laser", "Laser", 0)
   self:addUpgrade("rpg", "RPG", 0)
+
+  self.buttonWidth = 150
+  self.buttonHeight = 40
+  self.readyBtn = self:makeButton("NEXT WAVE", "center")
+  self.closeBtn = self:makeButton("CLOSE", "left")
+  self.menuBtn = self:makeButton("EXIT TO MENU", "right")
+
+  self.altarWidth = 300
+  self.altarHeight = 22
+  self.altarText = Text:new{x = love.graphics.width / 2 - self.altarWidth / 2, width = self.altarWidth, font = assets.fonts.main[18], align = "center", shadow = true}
+  self.altarText.y = self.altarText.fontHeight / 2 - 1
+
+  self.bigText = Text:new{x = 0, width = love.graphics.wdith, font = assets.fonts.main[48], align = "center", shadow = true}
+  self.bigText.y = love.graphics.height / 2 - self.bigText.fontHeight
+  self.bigText.color[4] = 0  
+  self.bigTextTimer = 0
+
+  self.instructions = Text:new{x = 100, y = 600, width = love.graphics.width - 200, font = assets.fonts.main[18], align = "center", shadow = true}
+  self.instructions.color[4] = 0
+  self.instructionsTimer = 0
 end
 
 function HUD:update(dt)
   self.coinText.text = self.world.coins
   self.weaponText.text = tostring(self.world.player.weaponIndex) .. ": " .. self.world.player.weapon
   self.altarText.text = self.world.altar.health
+
+  local txt = ""
+
+  for i, v in ipairs{"smg", "mg", "sg", "laser", "rpg"} do
+    if self.world.player.weapon ~= v and self.world.player[v .. "Unlocked"] then
+      txt = txt .. tostring(i) .. ": " .. string.upper(v) .. "\n"
+    end
+  end
+
+  self.weaponList.text = txt
 
   if self.ttOpen then
     if self.ttScissor < 1 then
@@ -59,11 +83,12 @@ function HUD:update(dt)
     if input.released("upgrade") then
       if self.ttID:isInstanceOf(Altar) then
         self:showPlayerUpgrades()
-      elseif self.ttID == "brazier" then
-        --
+      elseif self.ttID:isInstanceOf(Brazier) then --and self.world.coins >= self.ttCost then
+        self.ttID:makeTurret()
+        self:closeTooltip()
+        self.world.coins = self.world.coins - self.ttCost
+        playSound("upgrade")
       end
-    elseif input.released("repair") then
-
     end
   elseif self.ttScissor > 0 then
     self.ttScissor = math.max(self.ttScissor - dt * 3, 0)
@@ -84,25 +109,32 @@ function HUD:update(dt)
       local x = self.upgradeScreenPadding + (i - 1) * (width + self.upgradeItemPadding)
 
       if mx > x and mx < x + width and my > self.upgradeY and my < self.upgradeY + self.upgradeHeight and input.released("upgrade") then
-        --if self.world.coins >= tonumber(v.cost.text) then
+        if self.world.coins >= tonumber(v.cost.text) then
           self.world:purchaseUpgrade(v.id)
           self:updateUpgrades()
-        --else
-        --  self.purchaseDeniedTimer = 0.2
-        --  self.purchaseDeniedID = v.id
-        --end
+          playSound("upgrade")
+        else
+         self.purchaseDeniedTimer = 0.2
+         self.purchaseDeniedID = v.id
+        end
       end
     end
 
-    for i = 1, 2 do
-      local btn = i == 1 and self.readyBtn or self.closeBtn
+    for i = 1, 3 do
+      local btn = i == 1 and self.readyBtn or (i == 2 and self.closeBtn or self.menuBtn)
 
       if mx > btn.x and mx < btn.x + self.buttonWidth and my > btn.y and my < btn.y + self.buttonHeight and input.released("upgrade") then
         if i == 1 then
           self:hidePlayerUpgrades()
           self.world:nextWave()
-        else
+          playSound("upgrade2")
+        elseif i == 2 then
           self:hidePlayerUpgrades()
+          playSound("upgrade2")
+        else
+          self:fadeOut()
+          delay(0.5, function() ammo.world = Menu:new() end)
+          playSound("upgrade2")
         end
       end
     end
@@ -112,6 +144,27 @@ function HUD:update(dt)
 
   if self.purchaseDeniedTimer > 0 then
     self.purchaseDeniedTimer = self.purchaseDeniedTimer - dt
+  end
+
+  if self.bigTextTimer > 0 then
+    self.bigTextTimer = self.bigTextTimer - dt
+
+    if self.bigTextTimer <= 0 then
+      self.bigText.color[4] = 0
+
+      if self.bigTextCallback then
+        self.bigTextCallback()
+        self.bigTextCallback = nil
+      end
+    end
+  end
+
+  if self.instructionsTimer > 0 then
+    self.instructionsTimer = self.instructionsTimer - dt
+
+    if self.instructionsTimer <= 0 then
+      self:hideInstructions()
+    end
   end
 end
 
@@ -129,6 +182,7 @@ function HUD:draw()
   end
 
   self.weaponText:draw()
+  self.weaponList:draw()
 
   love.graphics.setColor(100, 100, 100, 150)
   love.graphics.rectangle("fill", love.graphics.width / 2 - self.altarWidth / 2, 8, self.altarWidth, self.altarHeight)
@@ -182,8 +236,8 @@ function HUD:draw()
       love.graphics.draw(self.coinImg, x + width / 2 - v.cost.fontWidth / 2 - iw / 2 - 8, v.cost.y + 1, 0, 0.8, 0.8)--, -iw / 2, -ih / 2)
     end
 
-    for i = 1, 2 do
-      local btn = i == 1 and self.readyBtn or self.closeBtn
+    for i = 1, 3 do
+      local btn = i == 1 and self.readyBtn or (i == 2 and self.closeBtn or self.menuBtn)
       local bgColor = 120
 
       if mx > btn.x and mx < btn.x + self.buttonWidth and my > btn.y and my < btn.y + self.buttonHeight then
@@ -198,13 +252,62 @@ function HUD:draw()
     end
   end
 
+  if self.fadeAlpha > 0 then
+    love.graphics.setColor(0, 0, 0, self.fadeAlpha)
+    love.graphics.rectangle("fill", 0, 0, love.graphics.width, love.graphics.height)
+    love.graphics.setColor(255, 255, 255)
+  end
+
+  if self.instructions.color[4] > 0 then self.instructions:draw() end
+  if self.bigTextTimer > 0 then self.bigText:draw() end
   love.graphics.setColor(255, 255, 255)
+end
+
+function HUD:fadeIn()
+  if self.fadeTween then self.fadeTween:stop() end
+  self.fadeTween = self:animate(0.5, { fadeAlpha = 0 })
+end
+
+function HUD:fadeOut()
+  if self.fadeTween then self.fadeTween:stop() end
+  self.fadeTween = self:animate(0.5, { fadeAlpha = 255 })
+end
+
+function HUD:display(text, time, callback)
+  self:closeTooltip()
+  self.bigText.text = text
+  self.bigText.color[4] = 255
+  self.bigTextTimer = time
+  self.bigTextCallback = callback
+end
+
+function HUD:showInstructions(text, time)
+  self.instructions.text = text
+  if self.instructionsTween then self.instructionsTween:stop() end
+  self.instructionsTween = tween(self.instructions.color, 0.25, { [4] = 255 })
+  self.instructionsTimer = time
+end
+
+function HUD:hideInstructions()
+  self.instructionsTimer = 0
+  if self.instructionsTween then self.instructionsTween:stop() end
+
+  if self.instructions.color[4] > 0 then
+    self.instructionsTween = tween(self.instructions.color, 0.25, { [4] = 0 })
+  end
 end
 
 function HUD:displayTooltip(id, text, cost)
   if self.disableTooltips then return end
   self.ttID = id
-  self.ttText.text = text
+
+  if cost then
+    self.ttText.text = text .. " (" .. tostring(cost) .. "G)"
+  else
+    self.ttText.text = text
+  end
+
+  self.ttCost = cost
   self.ttOpen = true
   love.mouse.setVisible(false)
 end
@@ -218,6 +321,7 @@ function HUD:showPlayerUpgrades()
   self.disableTooltips = true
   self:closeTooltip()
   self.upgradesVisible = true
+  playSound("upgrade-screen")
 end
 
 function HUD:hidePlayerUpgrades()
@@ -262,7 +366,7 @@ end
 function HUD:makeButton(text, pos)
   local t = {
     text = Text:new{text, width = self.buttonWidth, font = assets.fonts.main[18], align = "center"},
-    x = pos == "left" and self.upgradeScreenPadding or love.graphics.width - self.upgradeScreenPadding - self.buttonWidth,
+    x = pos == "left" and 100 or (pos == "right" and love.graphics.width - 100 - self.buttonWidth or love.graphics.width / 2 - self.buttonWidth / 2),
     y = 500
   }
 
