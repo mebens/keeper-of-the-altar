@@ -31,7 +31,11 @@ function Room:initialize()
   local ent = findChild(self.xml, "Entities")
   local pobj = findChild(ent, "Player")
   self.player = Player:new(tonumber(pobj.attr.x) + Player.width / 2, tonumber(pobj.attr.y) + Player.height / 2)
-  self:add(self.player)
+
+  local aobj = findChild(ent, "Altar")
+  self.altar = Altar:new(tonumber(aobj.attr.x) + Altar.width / 2, tonumber(aobj.attr.y) + Altar.height / 2)
+
+  self:add(self.player, self.altar)
 
   self.walls = Walls:new(self.xml, self.width, self.height)
   self.floor = Floor:new(self.xml, self.width, self.height)
@@ -62,7 +66,6 @@ end
 
 function Room:start()
   self:startWave(1)
-  --self.lighting:add(200, 200, 150)
 end
 
 function Room:update(dt)
@@ -103,6 +106,7 @@ function Room:startWave(num)
   self.waveReps = 0
   self.wait = 0
   self.waveNum = num
+  self.altar:switchMode("fire")
 end
 
 function Room:nextWave()
@@ -111,14 +115,30 @@ end
 
 function Room:endWave()
   self.inWave = false
+  self.altar:switchMode("calm")
+  self.hud:updateUpgrades()
 end
 
 function Room:coinCollected()
   self.coins = self.coins + 1
 end
 
+function Room:purchaseUpgrade(id)
+  local level = self.player[id .. "Level"]
+  local upgrade = Player[id .. "Upgrades"][level + 1]
+
+  if upgrade then
+    self.player:upgradeTo(id, level + 1)
+    self.coins = self.coins - upgrade[2]
+  end
+end
+
 function Room:waveFinal(i, r)
-  self:add(Spawner:new("left", "knight", 0.5, 50))
-  self.wait = "enemies"
-  return nil, true
+  if i == 1 then
+    self:add(Spawner:new("left", "knight", 0.5, 10))
+    self.wait = "enemies"
+    return 2, false
+  else
+    return nil, true
+  end
 end

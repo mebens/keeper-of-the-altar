@@ -1763,11 +1763,12 @@
     <tile x="44" y="44" id="10" />
   </Floor>
   <Entities>
-    <Player id="0" x="207" y="198" />
+    <Player id="0" x="180" y="198" />
     <SpawnerPos id="1" x="0" y="198" position="left" />
     <SpawnerPos id="2" x="396" y="198" position="right" />
     <SpawnerPos id="3" x="198" y="0" position="top" />
     <SpawnerPos id="4" x="198" y="396" position="bottom" />
+    <Altar id="5" x="189" y="189" />
   </Entities>
   <Walls tileset="Tiles" exportMode="XML" />
   <Collision exportMode="Rectangles" />

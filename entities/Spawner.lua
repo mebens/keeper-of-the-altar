@@ -23,6 +23,12 @@ function Spawner:added()
     self.yVariance = 0
     --self.angle = self.position == "top" and math.tau * 0.75 or math.tau / 4
   end
+
+  Enemy.all:push(self)
+end
+
+function Spawner:removed()
+  Enemy.all:remove(self)
 end
 
 function Spawner:update(dt)

@@ -21,7 +21,19 @@ function Enemy:added()
   Enemy.all:push(self)
 end
 
+function Enemy:removed()
+  self:destroy()
+  Enemy.all:remove(self)
+end
+
 function Enemy:update(dt)
+  if self.dead then
+    self:destroy()
+    self.world = nil
+    DEBUG = os.time()
+    return
+  end
+
   PhysicalEntity.update(self, dt)
   self:setAngularVelocity(0)
 
@@ -52,10 +64,31 @@ function Enemy:bulletHit(bullet, contact)
   self.slowdownTimer = self.slowdownTime
 end
 
+function Enemy:laserDamage(damage)
+  self.health = self.health - damage
+
+  if self.health <= 0 then
+    self:die() -- will need to gib
+    return
+  end
+
+  self.slowdownTimer = 0.1
+end
+
+function Enemy:rocketDamage(damage)
+  self.health = self.health - damage
+
+  if self.health <= 0 then
+    self:die() -- gib
+    return
+  end
+
+  self.slowdownTimer = self.slowdownTime
+end
+
 function Enemy:die()
   if self.dead then return end
   self.world:add(Coin:new(self.x, self.y))
   self.dead = true
   self.world = nil
-  Enemy.all:remove(self)
 end

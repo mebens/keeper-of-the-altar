@@ -17,11 +17,12 @@ end
 function Lighting:initialize(width, height)
   Entity.initialize(self)
   self.layer = 1
+  self.visible = true
   self.width = width
   self.height = height
   self.canvas = love.graphics.newCanvas(love.graphics.width, love.graphics.height)
   self.lights = LinkedList:new()
-  self.ambient = 80
+  self.ambient = 110
 end
 
 function Lighting:draw()
@@ -35,7 +36,7 @@ function Lighting:draw()
     if light.alpha > 0 then
       self.world.camera:set()
       love.graphics.setCanvas(self.canvas)
-      love.graphics.setColor(255, 255, 255, light.alpha)
+      love.graphics.setColor(light.color[1], light.color[2], light.color[3], light.alpha)
       love.graphics.draw(light.image, light.x - light.radius, light.y - light.radius)
       self.world.camera:unset()
     end
@@ -56,6 +57,7 @@ function Lighting:add(x, y, radius, innerRadius, intensity)
   local t = {
     x = x,
     y = y,
+    color = { 255, 255, 255 },
     alpha = 255,
     radius = radius,
     image = makeLightImage(radius, innerRadius, intensity),

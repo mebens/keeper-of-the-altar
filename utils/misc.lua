@@ -1,3 +1,16 @@
+function shuffleTable(t)
+  local rand = math.random
+  local length = #t
+  local j
+
+  for i = length, 2, -1 do
+    j = rand(i)
+    t[i], t[j] = t[j], t[i]
+  end
+
+  return t
+end
+
 function playSound(sound, volume, pan)
   if type(sound) == "string" then sound = assets.sfx[sound] end
   return sound:play(volume, pan)
@@ -62,7 +75,7 @@ function Entity:drawMap(map, x, y, color, ox, oy)
   angle = self.angle
   if self.drawPerpAngle then angle = angle + math.tau / 4 end
   if color then love.graphics.setColor(color) end
-  local imageScale = self.imageScale or 2
+  local imageScale = self.imageScale or 1
   local scale = imageScale * (self.scale or 1)
   
   map:draw(
