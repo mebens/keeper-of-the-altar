@@ -38,13 +38,20 @@ Player.static.rpgUpgrades = {
 
 function Player:initialize(x, y)
   PhysicalEntity.initialize(self, x, y, "dynamic")
+  self.respawnX = x
+  self.respawnY = y
   self.layer = 4
   self.width = Player.width
   self.height = Player.height
-  self.image = assets.images.demonMg
+  self.mgImg = assets.images.demonMg
+  self.mg2Img = assets.images.demonMgDual
   self.speed = 1800 * 60 -- 1800 per frame at 60 fps
-  self.health = 100
-  self.lives = 2
+  self.maxHealth = 50
+  self.health = self.maxHealth
+  self.dead = true
+  self.respawnTime = 3
+  self.respawnTimer = self.respawnTime
+  self.scale = 1
 
   self.weaponIndex = 1
   self.weapon = "smg"
@@ -55,11 +62,15 @@ function Player:initialize(x, y)
   self.sgAttackTime = 0.5
   self.sgVariance = math.tau / 10
   self.laser = Laser:new()
+  self.laser2 = Laser:new()
   self.laserHeat = 0
   self.laserOverheatTime = 1
   self.laserOverheatTimer = 0
   self.rpgAttackTime = 0.8
   self:applySettings(1, 0, 0, 0, 0)
+
+  self.muzzleFlashTime = 0.03
+  self.muzzleFlashTimer = 0
 
   local ps = love.graphics.newParticleSystem(Player.coinParticle, 100)
   ps:setPosition(x, y)
@@ -70,6 +81,20 @@ function Player:initialize(x, y)
   ps:setSpeed(25, 40)
   ps:setSpread(math.tau / 3)
   self.coinPS = ps
+
+  ps = love.graphics.newParticleSystem(Player.coinParticle, 200)
+  ps:setPosition(x, y)
+  ps:setSpread(math.tau)
+  ps:setAreaSpread("normal", 1.5, 1.5)
+  ps:setTangentialAcceleration(30, 50)
+  ps:setSizes(2, 1.5)
+  ps:setSpeed(1, 2)
+  ps:setColors(41, 0, 80, 255, 126, 10, 128, 0)
+  ps:setParticleLifetime(1.5, 2)
+  ps:setEmitterLifetime(-1)
+  ps:setEmissionRate(100)
+  ps:start()
+  self.spawnPS = ps
 end
 
 function Player:added()
@@ -81,10 +106,32 @@ function Player:added()
 
   self.light = self.world.lighting:add(self.x, self.y, 70)
   self.light.alpha = 125
-  self.world:add(self.laser)
+  self.muzzleLight = self.world.lighting:add(self.x, self.y, 130, 10)
+  self.muzzleLight.alpha = 0
+  self.world:add(self.laser, self.laser2)
 end
 
 function Player:update(dt)
+  self.coinPS:update(dt)
+  self.spawnPS:update(dt)
+
+  if self.respawnTimer > 0 then
+    self.respawnTimer = self.respawnTimer - dt
+
+    if self.respawnTimer <= 0 then
+      self:spawn()
+      self.scale = 1
+    elseif self.respawnTimer <= 0.5 then
+      self.scale = 1 - self.respawnTimer * 2
+    end
+  end
+
+  self.light.x = self.x
+  self.light.y = self.y
+  self.muzzleLight.x = self.x
+  self.muzzleLight.y = self.y
+
+  if self.dead then return end
   PhysicalEntity.update(self, dt)
   self:setAngularVelocity(0)
 
@@ -93,6 +140,15 @@ function Player:update(dt)
   if dir then self:applyForce(self.speed * math.cos(dir) * dt, self.speed * math.sin(dir) * dt) end
 
   self.laser:reset()
+  self.laser2:reset()
+
+  if self.muzzleFlashTimer > 0 then
+    self.muzzleFlashTimer = self.muzzleFlashTimer - dt
+
+    if self.muzzleFlashTimer <= 0 then
+      self.muzzleLight.alpha = 0
+    end
+  end
 
   if self.attackTimer > 0 then
     self.attackTimer = self.attackTimer - dt
@@ -126,28 +182,47 @@ function Player:update(dt)
   if input.pressed("nextweapon") and self.weaponIndex < 5 then
     self:switchWeapon(self.weaponIndex + 1)
   end
-
-  self.light.x = self.x
-  self.light.y = self.y
-  self.coinPS:update(dt)
 end
 
 function Player:attack(dt)
+  local sx, sy = self.x + 5 * math.cos(self.angle), self.y + 5 * math.sin(self.angle)
+  local dx1, dy1 = sx + math.cos(self.angle + math.tau / 4) * 3, sy + math.sin(self.angle + math.tau / 4) * 3
+  local dx2, dy2 = sx - math.cos(self.angle + math.tau / 4) * 3, sy - math.sin(self.angle + math.tau / 4) * 3
+  self.muzzleLight.alpha = 255
+  self.muzzleFlashTimer = self.muzzleFlashTime
+  self.muzzleLight.color[2] = 255
+  self.muzzleLight.color[3] = 255
+
   if self.weapon == "mg" then
-    self.world:add(Bullet:new(self.x + 5 * math.cos(self.angle), self.y + 5 * math.sin(self.angle), self.angle, self.mgCaliber))
+    if self.mgDual then
+      self.world:add(Bullet:new(dx1, dy1, self.angle))
+      self.world:add(Bullet:new(dx2, dy2, self.angle))
+    else
+      self.world:add(Bullet:new(sx, sy, self.angle, self.mgCaliber))
+    end
   elseif self.weapon == "smg" then
-    local angle = self.angle - self.smgVariance / 2 + self.smgVariance * math.random()
-    self.world:add(Bullet:new(
-      self.x + 5 * math.cos(self.angle),
-      self.y + 5 * math.sin(self.angle),
-      angle,
-      self.smgCaliber,
-      self.smgPenetration and 3 or 0
-    ))
+    if self.smgDual then
+      local angle1 = self.angle - self.smgVariance / 2 + self.smgVariance * math.random()
+      local angle2 = self.angle - self.smgVariance / 2 + self.smgVariance * math.random()
+      self.world:add(Bullet:new(dx1, dy1, angle1, self.smgCaliber, self.smgPenetration and 3 or 0))
+      self.world:add(Bullet:new(dx2, dy2, angle2, self.smgCaliber, self.smgPenetration and 3 or 0))
+    else
+      local angle = self.angle - self.smgVariance / 2 + self.smgVariance * math.random()
+      self.world:add(Bullet:new(sx, sy, angle, self.smgCaliber, self.smgPenetration and 3 or 0))
+    end
   elseif self.weapon == "sg" then
-    for i = 1, self.sgPellets do
-      local angle = self.angle - self.sgVariance / 2 + self.sgVariance * math.random()
-      self.world:add(Bullet:new(self.x + 5 * math.cos(self.angle), self.y + 5 * math.sin(self.angle), angle, "pellet", nil, self.sgSeeking))
+    if self.sgDual then
+      for i = 1, self.sgPellets do
+        local angle1 = self.angle - self.sgVariance / 2 + self.sgVariance * math.random()
+        local angle2 = self.angle - self.sgVariance / 2 + self.sgVariance * math.random()
+        self.world:add(Bullet:new(dx1, dy1, angle1, "pellet", nil, self.sgSeeking))
+        self.world:add(Bullet:new(dx2, dy2, angle2, "pellet", nil, self.sgSeeking))
+      end
+    else
+      for i = 1, self.sgPellets do
+        local angle = self.angle - self.sgVariance / 2 + self.sgVariance * math.random()
+        self.world:add(Bullet:new(sx, sy, angle, "pellet", nil, self.sgSeeking))
+      end
     end
   elseif self.weapon == "laser" then
     if self.laserOverheatTimer <= 0 then
@@ -157,16 +232,79 @@ function Player:attack(dt)
         self.laserOverheatTimer = self.laserOverheatTime
       end
 
-      self.laser:fire(dt, self.x, self.y, self.angle)
+      if self.laserDual then
+        self.laser:fire(dt, dx1, dy1, self.angle)
+        self.laser2:fire(dt, dx2, dy2, self.angle)
+      else
+        self.laser:fire(dt, sx, sy, self.angle)
+      end
+
+      self.muzzleLight.alpha = math.random(170, 255)
+      self.muzzleLight.color[2] = 120
+      self.muzzleLight.color[3] = 120
+    else
+      self.muzzleLight.alpha = 0
+      self.muzzleFlashTimer = 0
     end
   elseif self.weapon == "rpg" then
-    self.world:add(Rocket:new(self.x + 5 * math.cos(self.angle), self.y + 5 * math.sin(self.angle), self.angle, self.rpgSeeking))
+    if self.rpgDual then
+      self.world:add(Rocket:new(dx1, dy1, self.angle, self.rpgSeeking))
+      self.world:add(Rocket:new(dx2, dy2, self.angle, self.rpgSeeking))
+    else
+      self.world:add(Rocket:new(sx, sy, self.angle, self.rpgSeeking))
+    end
   end
 end
 
 function Player:draw()
+  love.graphics.draw(self.spawnPS)
   love.graphics.draw(self.coinPS)
-  self:drawImage()
+
+  if not self.dead or self.respawnTimer <= 0.5 then
+    local img
+    if self[self.weapon .. "Dual"] then
+      img = self.mg2Img
+    else
+      img = self.mgImg
+    end
+
+    self:drawImage(img)
+  end
+end
+
+function Player:die()
+  if self.dead then return end
+  self.dead = true
+  self.respawnTimer = self.respawnTime
+  self.spawnPS:setPosition(self.respawnX, self.respawnY)
+  self.spawnPS:start()
+  self.light.alpha = 0
+  tween(self.light, self.respawnTime * (2/3), { alpha = 125 })
+
+  self.world:add(BloodSpurt:new(self.x, self.y, math.tau * math.random(), 6, 6, 1))
+
+  self.x = self.respawnX
+  self.y = self.respawnY
+end
+
+function Player:spawn()
+  self.health = self.maxHealth
+  self.x = self.respawnX
+  self.y = self.respawnY
+  self.dead = false
+  self.spawnPS:stop()
+end
+
+function Player:damage(amount, enemy)
+  if self.dead then return end
+  self.health = self.health - amount
+
+  if self.health <= 0 then
+    self:die()
+  end
+
+  local angle = math.angle(self.x, self.y, enemy.x, enemy.y)
+  self.world:add(BloodSpurt:new(self.x, self.y, -angle))
 end
 
 function Player:applySettings(smg, mg, sg, laser, rpg)
@@ -198,7 +336,10 @@ function Player:applySettings(smg, mg, sg, laser, rpg)
   self.laserHeatLimit = 2
   self.laser.maxPenetrations = 0
   if laser >= 1 then self.laserUnlocked = true end
-  if laser >= 2 then self.laser.maxPenetrations = 5 end
+  if laser >= 2 then
+    self.laser.maxPenetrations = 5
+    self.laser2.maxPenetrations = 5
+  end
   if laser >= 3 then self.laserDual = true end
   if laser >= 4 then self.laserHeatLimit = 5 end
 
@@ -215,7 +356,7 @@ function Player:upgradeTo(id, level)
 end
 
 function Player:switchWeapon(index)
-  self.weaponIndex = index
+  local curwep = self.weapon
 
   if index == 1 then
     if self.smgUnlocked then self.weapon = "smg" end
@@ -227,6 +368,10 @@ function Player:switchWeapon(index)
     if self.laserUnlocked then self.weapon = "laser" end
   elseif index == 5 then
     if self.rpgUnlocked then self.weapon = "rpg" end
+  end
+
+  if self.weapon ~= curwep then
+    self.weaponIndex = index
   end
 end
 

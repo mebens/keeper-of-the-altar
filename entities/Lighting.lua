@@ -1,6 +1,6 @@
 Lighting = class("Lighting", Entity)
 
-local function makeLightImage(radius, inner, intensity)
+function makeLightImage(radius, inner, intensity)
   local data = love.image.newImageData(radius * 2, radius * 2)
   inner = inner or 0
   intensity = intensity or 1
@@ -22,7 +22,7 @@ function Lighting:initialize(width, height)
   self.height = height
   self.canvas = love.graphics.newCanvas(love.graphics.width, love.graphics.height)
   self.lights = LinkedList:new()
-  self.ambient = 110
+  self.ambient = 20
 end
 
 function Lighting:draw()
@@ -64,6 +64,20 @@ function Lighting:add(x, y, radius, innerRadius, intensity)
     type = "circle"
   }
   
+  self.lights:push(t)
+  return t
+end
+
+function Lighting:addImage(img, x, y, radius)
+  local t = {
+    x = x,
+    y = y,
+    radius = radius,
+    color = { 255, 255, 255 },
+    alpha = 255,
+    image = img
+  }
+
   self.lights:push(t)
   return t
 end

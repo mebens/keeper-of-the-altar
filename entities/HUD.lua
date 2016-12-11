@@ -5,7 +5,7 @@ function HUD:initialize()
   self.layer = 0
   self.coinImg = assets.images.coinHUD
   self.coinText = Text:new{0, x = 25, y = 5, font = assets.fonts.main[18], shadow = true}
-  self.weaponText = Text:new{"", x = 6, y = 5, width = love.graphics.width - 12, font = assets.fonts.main[18], align = "right", shadow = true}
+  self.weaponText = Text:new{x = 6, y = 5, width = love.graphics.width - 12, font = assets.fonts.main[18], align = "right", shadow = true}
 
   self.ttText = Text:new{"", font = assets.fonts.main[12]}
   self.ttScissor = 0
@@ -35,6 +35,10 @@ function HUD:initialize()
   self.readyBtn = self:makeButton("READY", "left")
   self.closeBtn = self:makeButton("CLOSE", "right")
 
+  self.altarWidth = 300
+  self.altarHeight = 22
+  self.altarText = Text:new{x = love.graphics.width / 2 - self.altarWidth / 2, width = self.altarWidth, font = assets.fonts.main[18], align = "center", shadow = true}
+  self.altarText.y = self.altarText.fontHeight / 2 - 1
   self:addUpgrade("smg", "SMG", 1)
   self:addUpgrade("mg", "Machine Gun", 0)
   self:addUpgrade("sg", "Shotgun", 0)
@@ -45,6 +49,7 @@ end
 function HUD:update(dt)
   self.coinText.text = self.world.coins
   self.weaponText.text = tostring(self.world.player.weaponIndex) .. ": " .. self.world.player.weapon
+  self.altarText.text = self.world.altar.health
 
   if self.ttOpen then
     if self.ttScissor < 1 then
@@ -124,6 +129,14 @@ function HUD:draw()
   end
 
   self.weaponText:draw()
+
+  love.graphics.setColor(100, 100, 100, 150)
+  love.graphics.rectangle("fill", love.graphics.width / 2 - self.altarWidth / 2, 8, self.altarWidth, self.altarHeight)
+  love.graphics.setColor(95, 10, 10, 255)
+  local ratio = self.world.altar.health / self.world.altar.maxHealth
+  love.graphics.rectangle("fill", love.graphics.width / 2 - self.altarWidth / 2, 8, self.altarWidth * ratio, self.altarHeight)
+  love.graphics.setColor(255, 255, 255, 255)
+  self.altarText:draw()
 
   local mx, my = love.mouse.getPosition()
 

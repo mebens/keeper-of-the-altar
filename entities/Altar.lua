@@ -8,11 +8,13 @@ function Altar:initialize(x, y)
   self.layer = 6
   self.width = Altar.width
   self.height = Altar.height
-  self.map = Spritemap:new(assets.images.altar, 27, 27, self.fireAnimation, self)
-  self.map:add("calm", { 9, 10, 11, 12, 13, 14, 15, 16 }, 4, true)
-
+  self.maxHealth = 2000
+  self.health = self.maxHealth
   self.pulseFactor = 0
   self.pulseDir = 1
+
+  self.map = Spritemap:new(assets.images.altar, 27, 27, self.fireAnimation, self)
+  self.map:add("calm", { 9, 10, 11, 12, 13, 14, 15, 16 }, 4, true)
 
   local ps = love.graphics.newParticleSystem(Altar.emberParticle, 300)
   ps:setPosition(x, y)
@@ -69,6 +71,18 @@ end
 function Altar:draw()
   self:drawMap()
   love.graphics.draw(self.emberPS)
+end
+
+function Altar:die()
+  -- bad shit
+end
+
+function Altar:damage(amount)
+  self.health = math.max(self.health - amount, 0)
+
+  if self.health == 0 then
+    self:die()
+  end
 end
 
 function Altar:switchMode(mode)

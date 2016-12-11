@@ -40,8 +40,9 @@ function Room:initialize()
   self.walls = Walls:new(self.xml, self.width, self.height)
   self.floor = Floor:new(self.xml, self.width, self.height)
   self.lighting = Lighting:new(self.width, self.height)
+  self.floorBlood = FloorBlood:new(self.width, self.height)
   self.hud = HUD:new()
-  self:add(self.walls, self.floor, self.lighting, self.hud)
+  self:add(self.walls, self.floor, self.lighting, self.hud, self.floorBlood)
 
   self.spawnerPositions = {}
   self.spawnerMargin = TILE_SIZE * 3

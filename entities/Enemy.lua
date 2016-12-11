@@ -9,6 +9,7 @@ function Enemy:initialize(x, y)
   self.slowdownSpeed = 400 * 60
   self.slowdownTimer = 0
   self.slowdownTime = 0.6
+  self.attackTimer = 0
 end
 
 function Enemy:added()
@@ -19,6 +20,7 @@ function Enemy:added()
   self.destX = self.world.width / 2
   self.destY = self.world.height / 2
   Enemy.all:push(self)
+  if self.map then self.map:play("move") end
 end
 
 function Enemy:removed()
@@ -30,7 +32,6 @@ function Enemy:update(dt)
   if self.dead then
     self:destroy()
     self.world = nil
-    DEBUG = os.time()
     return
   end
 
@@ -44,8 +45,48 @@ function Enemy:update(dt)
     self.slowdownTimer = self.slowdownTimer - dt
   end
 
-  self.angle = math.angle(self.x, self.y, self.destX, self.destY)
-  self:applyForce(speed * math.cos(self.angle) * dt, speed * math.sin(self.angle) * dt)
+  if self.attackTimer > 0 then
+    self.attackTimer = self.attackTimer - dt
+  end
+
+  local angle = nil
+
+  if self.attack == "altar" then
+    local dist = math.distance(self.x, self.y, self.destX, self.destY)
+
+    if dist > self.attackRange + 15 then
+      angle = math.angle(self.x, self.y, self.destX, self.destY)
+    elseif self.attackTimer <= 0 then
+      self.world.altar:damage(self.damage, self)
+      self.attackTimer = self.attackTime
+      if self.map then self.map:play("attack") end
+    end
+  elseif self.attack == "player" then
+    local dist = math.distance(self.x, self.y, self.world.player.x, self.world.player.y)
+
+    if dist > 60 then
+      self.attack = nil
+    elseif dist > self.attackRange then
+      angle = math.angle(self.x, self.y, self.world.player.x, self.world.player.y)
+    elseif self.attackTimer <= 0 then
+      self.world.player:damage(self.damage, self)
+      self.attackTimer = self.attackTime
+      if self.map then self.map:play("attack") end
+    end
+  else
+    angle = math.angle(self.x, self.y, self.destX, self.destY)   
+  end
+
+  if angle then
+    self.angle = angle
+    self:applyForce(speed * math.cos(angle) * dt, speed * math.sin(angle) * dt)
+
+    if self.map and self.map.current ~= "move" then
+      self.map:play("move")
+    end
+  end
+
+  if self.map then self.map:update(dt) end
 end
 
 function Enemy:draw()
@@ -55,6 +96,7 @@ end
 
 function Enemy:bulletHit(bullet, contact)
   self.health = self.health - bullet.damage
+  self.world:add(BloodSpurt:new(self.x, self.y, bullet.angle, 2))
 
   if self.health <= 0 then
     self:die()
@@ -68,6 +110,7 @@ function Enemy:laserDamage(damage)
   self.health = self.health - damage
 
   if self.health <= 0 then
+    self.world:add(BloodSpurt(self.x, self.y, math.tau * math.random(), 6, 6, 1))
     self:die() -- will need to gib
     return
   end
@@ -79,7 +122,8 @@ function Enemy:rocketDamage(damage)
   self.health = self.health - damage
 
   if self.health <= 0 then
-    self:die() -- gib
+    self.world:add(BloodSpurt(self.x, self.y, math.tau * math.random(), 6, 6, 1))
+    self:die()
     return
   end
 
@@ -91,4 +135,12 @@ function Enemy:die()
   self.world:add(Coin:new(self.x, self.y))
   self.dead = true
   self.world = nil
+end
+
+function Enemy:collided(other)
+  if other:isInstanceOf(Altar) then
+    self.attack = "altar"
+  elseif other:isInstanceOf(Player) then
+    self.attack = "player"
+  end
 end

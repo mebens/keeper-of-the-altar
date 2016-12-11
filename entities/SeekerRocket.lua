@@ -1,4 +1,5 @@
 SeekerRocket = class("SeekerRocket", PhysicalEntity)
+SeekerRocket.static.lightImg = makeLightImage(100, 10)
 
 function SeekerRocket:initialize(x, y, angle)
   PhysicalEntity.initialize(self, x, y, "dynamic")
@@ -13,6 +14,8 @@ function SeekerRocket:initialize(x, y, angle)
   self.damage = 200
   self.radius = 30
   self.seekDist = 40
+  self.lightTime = 0.05
+  self.lightTimer = 0
 
   local ps = love.graphics.newParticleSystem(assets.images.smoke, 150)
   ps:setPosition(x, y)
@@ -37,13 +40,30 @@ function SeekerRocket:added()
   self.fixture:setCategory(5)
   self.fixture:setMask(2, 5)
   self:animate(0.5, { speed = self.normalSpeed })
+  self.light = self.world.lighting:addImage(SeekerRocket.lightImg, self.x, self.y, 100)
+  self.light.alpha = 0
 end
 
 function SeekerRocket:update(dt)
   self.smokePS:update(dt)
 
+  self.light.x = self.x
+  self.light.y = self.y
+
+  if self.lightTimer > 0 then
+    self.lightTimer = self.lightTimer - dt
+
+    if self.lightTimer <= 0 then
+      self.light.alpha = 0
+    end
+  end
+
   if self.dead then
-    if self.smokePS:getCount() == 0 then self.world = nil end
+    if self.smokePS:getCount() == 0 then
+      self.world = nil
+      self.world.lighting:remove(self.light)
+    end
+
     return
   end
 
@@ -103,6 +123,8 @@ function SeekerRocket:explode()
     end
   end
 
+  self.lightTimer = self.lightTime
+  self.light.alpha = 255
   self.smokePS:setSpeed(300)
   self.smokePS:setLinearDamping(5, 10)
   self.smokePS:setSpread(math.tau)
