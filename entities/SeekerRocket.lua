@@ -93,6 +93,13 @@ function SeekerRocket:update(dt)
       self.target = nil
     else
       local tangle = math.angle(self.x, self.y, self.target.x, self.target.y)
+      local diff1 = math.abs(tangle - self.angle)
+      local diff2 = math.abs((math.tau - tangle) - self.angle)
+
+      if diff2 < diff1 then
+        tangle = math.tau - tangle
+      end
+      
       self.angle = math.lerp(self.angle, tangle, math.min(4 * dt, 1))
     end
   end

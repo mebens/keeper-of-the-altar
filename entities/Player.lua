@@ -242,6 +242,7 @@ function Player:attack(dt)
       self.laserHeat = self.laserHeat + dt
 
       if self.laserHeat >= self.laserHeatLimit then
+        playSound("laser-overheat")
         self.laserOverheatTimer = self.laserOverheatTime
       end
 

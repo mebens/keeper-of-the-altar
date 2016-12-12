@@ -127,6 +127,7 @@ function Enemy:laserDamage(damage)
 
   if self.health <= 0 then
     self.world:add(BloodSpurt(self.x, self.y, math.tau * math.random(), 6, 6, 1))
+    playRandom{"enemy-burst", "enemy-burst2"}
     self:die() -- will need to gib
     return
   end
@@ -150,6 +151,7 @@ function Enemy:die()
   if self.dead then return end
   self.world:add(Coin:new(self.x, self.y))
   self.dead = true
+  self.world.deathTimer = 0
   if not self.playingAnim then self.world = nil end
 end
 

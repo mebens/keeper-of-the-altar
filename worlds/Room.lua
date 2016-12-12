@@ -5,7 +5,7 @@ function Room:initialize(sandbox)
   self.sandbox = sandbox
   self.coins = 10
   self.inWave = false
-  self.totalWaves = 8
+  self.totalWaves = 10
   self.shakeTimer = 0
   self.shakeAmount = 0
   self.camera.x = love.graphics.width / 2
@@ -78,7 +78,7 @@ function Room:start()
   if self.sandbox then
     self.player:applySettings(4, 3, 4, 4, 3)
     delay(0.5, function()
-      self:startWave(self.totalWaves)
+      self:startWave(1)
     end)
   end
 
@@ -106,8 +106,14 @@ function Room:start()
               if self.inWave then return end
               self.hud:showInstructions("Collect coins from slain enemies to purchase upgrades", 4)
 
-              delay(4.5, function()
-                self.hud:showInstructions("Protect your lord's altar at all costs!", 4)
+              delay(4, function()
+                if self.inWave then return end
+                self.hud:showInstructions("You can also upgrade braziers to turrets by clicking on them", 4)
+
+                delay(4.5, function()
+                  if self.inWave then return end
+                  self.hud:showInstructions("Protect your lord's altar at all costs!", 4)
+                end)
               end)
             end)
           end)
@@ -137,7 +143,12 @@ function Room:update(dt)
 
   if self.inWave then
     if self.wait == "enemies" then
-      if Enemy.all.length == 0 then self.wait = 0 end
+      self.deathTimer = self.deathTimer + dt
+
+      if Enemy.all.length == 0 or self.deathTimer > 30 then
+        self.wait = 0
+        self.deathTimer = 0
+      end
     elseif self.wait > 0 then
       self.wait = self.wait - dt
     else
@@ -183,6 +194,7 @@ function Room:startWave(num)
     self.waveReps = 0
     self.wait = 0
     self.waveNum = num
+    self.deathTimer = 0
     self.altar:switchMode("fire")
     self.player.health = self.player.maxHealth
   end)
@@ -350,12 +362,106 @@ function Room:wave7(i, r)
   end
 end
 
+function Room:wave8(i, r)
+  if i == 1 then
+    self:add(Spawner:new(dir(), 0.1, 6))
+    self.wait = 3
+
+    if r < 3 then
+      return 1, true
+    else
+      return 2
+    end
+  elseif i == 2 then
+    self:add(Spawner:new(dir(), 0.05, 20))
+    self:add(Spawner:new(dir(), 2, 10))
+    self.wait = "enemies"
+    return 3
+  else
+    return nil
+  end
+end
+
+function Room:wave9(i, r)
+  if i == 1 then
+    self:add(Spawner:new("top", 0.4, 30))
+    self.wait = "enemies"
+    return 2
+  elseif i == 2 then
+    self:add(Spawner:new("bottom", 0.4, 30))
+    self.wait = "enemies"
+    return 3
+  else
+    return nil
+  end
+end
+
 function Room:waveFinal(i, r)
   if i == 1 then
-    self:add(Spawner:new("left", 0.5, 10))
+    self:finalSpawn()
+
+    if r < 10 then
+      return 1, true
+    else
+      return 2
+    end
+  elseif i == 2 then
     self.wait = "enemies"
-    return 2, false
+    return 3
   else
-    return nil, true
+    return nil
+  end
+end
+
+function Room:finalSpawn()
+  local r = math.random(1, 10)
+
+  if r == 1 then
+    local a = math.random(5, 8)
+    self:add(Spawner:new("left", 0.1, a))
+    self:add(Spawner:new("top", 0.1, a))
+    self:add(Spawner:new("right", 0.1, a))
+    self:add(Spawner:new("bottom", 0.1, a))
+    self.wait = "enemies"
+  elseif r == 2 then
+    local a = math.random(5, 8)
+    self:add(Spawner:new(dir(), 0.1, a))
+    self:add(Spawner:new(dir(), 0.1, a))
+    self:add(Spawner:new(dir(), 0.1, a))
+    self:add(Spawner:new(dir(), 0.1, a))
+    self.wait = "enemies"
+  elseif r == 3 then
+    self:add(Spawner:new(dir(), 0.05, 25))
+    self:add(Spawner:new("top", 0.8, 6))
+    self:add(Spawner:new("bottom", 0.8, 6))
+    self.wait = "enemies"
+  elseif r == 4 then
+    self:add(Spawner:new(dir(), 0.3, 10))
+    self.wait = 0.1
+  elseif r == 5 then
+    self:add(Spawner:new(dir(), 0.05, 8))
+    self.wait = 0.1
+  elseif r == 6 then
+    self:add(Spawner:new("top", 0.6, 8))
+    self:add(Spawner:new("bottom", 0.6, 8))
+    self.wait = 1
+  elseif r == 7 then
+    local a = math.random(30, 45)
+    self:add(Spawner:new(dir(), 0.2, a))
+    self.wait = "enemies"
+  elseif r == 8 then
+    local a = math.random(8, 12)
+    self:add(Spawner:new("left", 0.05, a))
+    self:add(Spawner:new("top", 0.05, a))
+  elseif r == 9 then
+    local a = math.random(8, 12)
+    self:add(Spawner:new("right", 0.05, a))
+    self:add(Spawner:new("bottom", 0.05, a))
+  elseif r == 10 then
+    self:add(Spawner:new("left", 0.5, 10))
+    self:add(Spawner:new("top", 0.4, 10))
+    self:add(Spawner:new("right", 0.6, 10))
+    self:add(Spawner:new("bottom", 0.5, 10))
+    self.wait = "enemies"
   end
 end

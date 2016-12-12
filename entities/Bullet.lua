@@ -58,6 +58,13 @@ function Bullet:update(dt)
       self.seekTarget = nil
     else
       local tangle = math.angle(self.x, self.y, self.seekTarget.x, self.seekTarget.y)
+      local diff1 = math.abs(tangle - self.angle)
+      local diff2 = math.abs((math.tau - tangle) - self.angle)
+
+      if diff2 < diff1 then
+        tangle = math.tau - tangle
+      end
+      
       self.angle = math.lerp(self.angle, tangle, math.min(4 * dt, 1))
     end
   elseif self.seeking then

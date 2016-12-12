@@ -108,6 +108,7 @@ function Altar:fireBurst()
   self.emberPS:setSpeed(50, 80)
   self.emberPS:emit(200)
   self.emberPS:setSpeed(20, 30)
+  playRandom({"altar-burst", "altar-burst2"}, 0.7)
 end
 
 function Altar:fireAnimation()

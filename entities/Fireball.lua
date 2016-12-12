@@ -5,8 +5,8 @@ function Fireball:initialize(x, y, enemy)
   self.target = enemy
   self.speed = 300
   self.radius = 4
-  self.damageRadius = 25
-  self.damage = 200
+  self.damageRadius = 20
+  self.damage = 180
 
   self.lightTime = 0.05
   self.lightTimer = 0
@@ -67,6 +67,13 @@ function Fireball:update(dt)
       self.target = nil
     else
       local tangle = math.angle(self.x, self.y, self.target.x, self.target.y)
+      local diff1 = math.abs(tangle - self.angle)
+      local diff2 = math.abs((math.tau - tangle) - self.angle)
+
+      if diff2 < diff1 then
+        tangle = math.tau - tangle
+      end
+
       self.angle = math.lerp(self.angle, tangle, math.min(6 * dt, 1))
       self.velx = self.speed * math.cos(self.angle)
       self.vely = self.speed * math.sin(self.angle)
@@ -89,6 +96,8 @@ function Fireball:die()
   self.explodeLight.x = self.x
   self.explodeLight.y = self.y
   self.lightTimer = self.lightTime
+  self.sound:stop()
+  playRandom({"explosion", "explosion2", "explosion3", "explosion4"}, 0.2)
 
   local dist
   for e in Enemy.all:iterate() do

@@ -2,10 +2,19 @@ Menu = class("Menu", World)
 
 function Menu:initialize()
   World.initialize(self)
-  self.title = Text:new{"LD37", x = 0, y = 200, width = love.graphics.width, font = assets.fonts.main[48], align = "center"}
+  self.title = Text:new{"Keeper of the Altar", x = 0, y = 320, width = love.graphics.width, font = assets.fonts.main[48], align = "center"}
   self.fadeAlpha = 255
+  self.image = assets.images.menuHead
+  self.image:setFilter("linear", "linear")
+  self.scale = 0.9
+
+  self.description = Text:new{
+    "A keeper will rarely see any action. Not you.\nToday legions of knights in shining armour descend upon the dark lord's sanctuary.\n\nDefend his altar by any means necessary.",
+    x = 100, y = 500, width = love.graphics.width - 200, font = assets.fonts.main[18], align = "center"
+  }
 
   self.buttons = {}
+  self.buttonY = 400
   self.buttonWidth = 150
   self.buttonHeight = 50
 
@@ -28,13 +37,17 @@ end
 
 function Menu:start()
   self:fadeIn()
+  self:scaleUp()
 end
 
 function Menu:draw()
   World.draw(self)
 
   postfx.exclude()
+  love.graphics.draw(self.image, love.graphics.width / 2, self.image:getHeight() / 2, 0, self.scale, self.scale, self.image:getWidth() / 2, self.image:getHeight() / 2)
+
   self.title:draw()
+  self.description:draw()
   local mx, my = love.mouse.getPosition()
   mx, my = mx + love.graphics.width / 2, my + love.graphics.height / 2
   --love.graphics.setPointSize(20)
@@ -71,7 +84,7 @@ function Menu:addButton(title, pos, func)
   local t = {
     text = Text:new{title, width = self.buttonWidth, font = assets.fonts.main[24], align = "center"},
     x = pos == "left" and 100 or (pos == "right" and love.graphics.width - 100 - self.buttonWidth or love.graphics.width / 2 - self.buttonWidth / 2),
-    y = 500,
+    y = self.buttonY,
     func = func
   }
 
@@ -87,5 +100,13 @@ end
 
 function Menu:fadeIn(func)
   tween(self, 0.5, { fadeAlpha = 0 }, nil, func)
+end
+
+function Menu:scaleUp()
+  tween(self, 4, { scale = 1.1 }, nil, self.scaleDown, self)
+end
+
+function Menu:scaleDown()
+  tween(self, 4, { scale = 0.9 }, nil, self.scaleUp, self)
 end
 
