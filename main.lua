@@ -41,7 +41,6 @@ function love.load()
   love.graphics.setDefaultFilter("nearest", "nearest")
 
   assets.loadShader("noise.frag")
-  assets.loadShader("bloom.frag")
   assets.loadImage("tiles.png")
   assets.loadImage("demon-mg.png", "demonMg")
   assets.loadImage("demon-mg2.png", "demonMgDual")
